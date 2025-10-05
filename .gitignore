@@ -1,0 +1,97 @@
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and debug files
+*.log
+debug_*.php
+test_*.php
+check_*.php
+quick_*.php
+simple_*.php
+comprehensive_*.php
+verify_*.php
+
+# Temporary and backup files
+*_backup.php
+*_debug.php
+*_test.php
+*.tmp
+*.temp
+admin_backup.php
+
+# Database files (keep structure, exclude dumps)
+*.sql.backup
+database_recovery.sql
+
+# Configuration files with sensitive data
+config_local.php
+.env
+.env.local
+
+# Cache and session files
+cache/
+sessions/
+tmp/
+
+# Upload directories (keep structure but not content)
+uploads/*
+!uploads/.gitkeep
+
+# Vendor directories
+vendor/
+node_modules/
+
+# Build and compiled files
+*.min.js
+*.min.css
+dist/
+build/
+
+# Documentation files (keep essential ones)
+*.md
+!README.md
+
+# Development and maintenance scripts
+add_*.php
+fix_*.php
+update_*.php
+move_*.php
+clear_*.php
+reset_*.php
+restore_*.php
+setup_*.php
+optimize_*.php
+track_*.php
+delete_*.php
+
+# Specific files mentioned by user
+applications.html
+bitnami.css
+
+# Google OAuth debug files
+google-*-debug.php
+
+# Stripe integration examples
+stripe-payment-example.php
+stripe-integration-guide.php
+
+# Checkout debug files
+checkout_debug.log
+checkout_debug_mode.php
+checkout-diagnostic.php
+
+# Specific test files
+test_mapbox.html
