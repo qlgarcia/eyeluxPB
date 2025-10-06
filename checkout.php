@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/header.php';
+require_once 'includes/paypal_config.php';
 
 $page_title = 'Checkout';
 
@@ -305,56 +306,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             
                             <div class="payment-options">
                                 <div class="payment-option">
-                                    <input type="radio" name="payment_method" value="credit_card" id="credit_card" checked>
-                                    <label for="credit_card">
-                                        <i class="fas fa-credit-card"></i>
-                                        <span>Credit Card</span>
-                                    </label>
-                                </div>
-                                
-                                <div class="payment-option">
-                                    <input type="radio" name="payment_method" value="paypal" id="paypal">
+                                    <input type="radio" name="payment_method" value="paypal" id="paypal" checked>
                                     <label for="paypal">
                                         <i class="fab fa-paypal"></i>
                                         <span>PayPal</span>
                                     </label>
                                 </div>
-                                
-                                <div class="payment-option">
-                                    <input type="radio" name="payment_method" value="apple_pay" id="apple_pay">
-                                    <label for="apple_pay">
-                                        <i class="fab fa-apple-pay"></i>
-                                        <span>Apple Pay</span>
-                                    </label>
-                                </div>
                             </div>
-                            
-                            <div id="credit-card-form" class="payment-form">
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="card_number">Card Number</label>
-                                        <input type="text" id="card_number" placeholder="1234 5678 9012 3456" maxlength="19">
-                                    </div>
-                                </div>
-                                
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="expiry_date">Expiry Date</label>
-                                        <input type="text" id="expiry_date" placeholder="MM/YY" maxlength="5">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="cvv">CVV</label>
-                                        <input type="text" id="cvv" placeholder="123" maxlength="4">
-                                    </div>
-                                </div>
-                                
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="card_name">Name on Card</label>
-                                        <input type="text" id="card_name" placeholder="John Doe">
-                                    </div>
-                                </div>
-                            </div>
+
+                            <div id="paypal-button-container" style="display: block; margin-top: 20px;"></div>
                         </section>
                         
                         <!-- Order Notes -->
@@ -409,9 +369,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                         </div>
                         
-                        <button type="submit" class="btn btn-primary place-order-btn">
-                            <i class="fas fa-lock"></i> Place Order
-                        </button>
+                        <!-- PayPal SDK will render buttons in the container above -->
+                        <div style="display: none;">
+                            <button type="button" class="btn btn-primary place-order-btn" disabled>
+                                <i class="fas fa-lock"></i> Pay with PayPal
+                            </button>
+                        </div>
                         
                         <div class="security-info">
                             <i class="fas fa-shield-alt"></i>
@@ -791,38 +754,213 @@ document.getElementById('same_as_shipping').addEventListener('change', function(
     }
 });
 
-// Format card number
-document.getElementById('card_number').addEventListener('input', function(e) {
-    let value = e.target.value.replace(/\s/g, '').replace(/[^0-9]/gi, '');
-    let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
-    e.target.value = formattedValue;
+// Only PayPal is available; ensure container is visible
+document.addEventListener('DOMContentLoaded', function() {
+    const paypalContainer = document.getElementById('paypal-button-container');
+    if (paypalContainer) paypalContainer.style.display = 'block';
 });
+</script>
 
-// Format expiry date
-document.getElementById('expiry_date').addEventListener('input', function(e) {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length >= 2) {
-        value = value.substring(0, 2) + '/' + value.substring(2, 4);
+<!-- PayPal SDK will be loaded dynamically to avoid conflicts -->
+<script>
+// PayPal Integration with Fallback
+(function() {
+    'use strict';
+    
+    const PAYPAL_CLIENT_ID = '<?php echo PAYPAL_CLIENT_ID; ?>';
+    const paypalContainer = document.getElementById('paypal-button-container');
+    
+    if (!paypalContainer) {
+        console.error('PayPal container not found');
+        return;
     }
-    e.target.value = value;
-});
+    
+    // Show loading state
+    
+    // If a clean global is already present, use it directly to avoid re-loading conflicts
+    if (typeof window.paypal !== 'undefined' && window.paypal && window.paypal.Buttons) {
+        console.log('Using existing PayPal global');
+        initializePayPalButtons(window.paypal);
+        return;
+    }
 
-// Format CVV
-document.getElementById('cvv').addEventListener('input', function(e) {
-    e.target.value = e.target.value.replace(/[^0-9]/g, '');
-});
-
-// Handle payment method changes
-document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        const creditCardForm = document.getElementById('credit-card-form');
-        if (this.value === 'credit_card') {
-            creditCardForm.style.display = 'block';
-        } else {
-            creditCardForm.style.display = 'none';
+    // Create script element and load PayPal SDK under a unique namespace to avoid collisions
+    const script = document.createElement('script');
+    // Explicitly request buttons component and enable debug logging for easier diagnostics
+    // Note: PAYPAL_CLIENT_ID should be a sandbox client ID for demo/testing
+    const PAYPAL_NAMESPACE = 'paypal_sdk';
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(PAYPAL_CLIENT_ID)}&components=buttons&currency=USD&intent=capture&disable-funding=credit,card&debug=true`;
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.setAttribute('data-namespace', PAYPAL_NAMESPACE);
+    
+    // Suppress PayPal SDK internal errors that don't affect functionality
+    const originalConsoleError = console.error;
+    console.error = function(...args) {
+        if (args[0] && args[0].includes && args[0].includes('startsWith')) {
+            // Suppress the known PayPal SDK internal error
+            return;
         }
-    });
-});
+        originalConsoleError.apply(console, args);
+    };
+    
+    script.onload = function() {
+        console.log('PayPal SDK script tag loaded');
+        
+        // Restore original console.error after PayPal loads
+        setTimeout(() => {
+            console.error = originalConsoleError;
+        }, 2000);
+        
+        // The SDK may attach the global a tick later; poll briefly before failing
+        const maxAttempts = 10; // ~2s total
+        let attempts = 0;
+        const waitForPaypal = setInterval(() => {
+            attempts++;
+            // Prefer namespaced object; fallback to default if provided
+            const paypalRef = (window[PAYPAL_NAMESPACE]) ? window[PAYPAL_NAMESPACE] : window.paypal;
+            if (paypalRef && paypalRef.Buttons) {
+                clearInterval(waitForPaypal);
+                initializePayPalButtons(paypalRef);
+            } else if (attempts >= maxAttempts) {
+                clearInterval(waitForPaypal);
+                console.error('PayPal SDK global not available after load');
+                showPayPalError('PayPal SDK not available. Please refresh the page and try again.');
+            }
+        }, 200);
+    };
+    
+    script.onerror = function() {
+        console.error('Failed to load PayPal SDK');
+        showPayPalError('Failed to load PayPal SDK. Please refresh the page and try again.');
+    };
+    
+    // Add script to head
+    document.head.appendChild(script);
+    
+    function initializePayPalButtons(paypalRef) {
+        if (!paypalRef || !paypalRef.Buttons) {
+            showPayPalError('PayPal SDK not available. Please refresh the page and try again.');
+            return;
+        }
+        
+        try {
+            paypalRef.Buttons({
+                style: {
+                    layout: 'vertical',
+                    color: 'gold',
+                    shape: 'rect',
+                    label: 'paypal'
+                },
+                createOrder: function(data, actions) {
+                    console.log('Creating PayPal order...');
+                    const form = document.querySelector('.checkout-form');
+                    if (!form) {
+                        throw new Error('Checkout form not found');
+                    }
+                    
+                    const formData = new FormData(form);
+                    formData.append('payment_method', 'paypal');
+                    
+                    // Ensure required address fields are present in POST
+                    try {
+                        const shippingChecked = document.querySelector('input[name="shipping_address"]:checked');
+                        const sameAsShipping = document.getElementById('same_as_shipping');
+                        if (sameAsShipping && sameAsShipping.checked && shippingChecked) {
+                            // Force billing_address to match shipping if checkbox is enabled
+                            formData.set('billing_address', shippingChecked.value);
+                        }
+                    } catch (e) {
+                        console.warn('Address sync warning:', e);
+                    }
+                    
+                    return fetch('paypal-create-order.php', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Accept': 'application/json' },
+                        body: formData
+                    })
+                    .then(async (res) => {
+                        const text = await res.text();
+                        let json;
+                        try {
+                            json = JSON.parse(text);
+                        } catch (err) {
+                            console.error('Create order returned non-JSON. Raw response snippet:', text.slice(0, 1000));
+                            throw new Error('Create order failed: Non-JSON response from server');
+                        }
+                        if (!res.ok || json.error) {
+                            const msg = json.error || 'Create order failed';
+                            throw new Error(msg);
+                        }
+                        return json;
+                    })
+                    .then(data => {
+                        paypalContainer.setAttribute('data-local-order-id', data.order_id);
+                        return data.id;
+                    });
+                },
+                onApprove: function(data, actions) {
+                    console.log('PayPal order approved:', data);
+                    const localOrderId = paypalContainer.getAttribute('data-local-order-id');
+                    
+                    if (!localOrderId) {
+                        throw new Error('Local order ID not found');
+                    }
+                    
+                    const fd = new FormData();
+                    fd.append('paypal_order_id', data.orderID);
+                    fd.append('order_id', localOrderId);
+                    
+                    return fetch('paypal-capture-order.php', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        body: fd
+                    })
+                    .then(res => res.json())
+                    .then(resp => {
+                        if (resp.error) throw new Error(resp.error);
+                        if (resp.redirect) {
+                            window.location.href = resp.redirect;
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Payment capture failed:', err);
+                        alert('Payment capture failed: ' + err.message);
+                    });
+                },
+                onError: function(err) {
+                    console.error('PayPal error:', err);
+                    alert('PayPal error: ' + (err?.message || 'Unexpected error occurred'));
+                },
+                onCancel: function(data) {
+                    console.log('PayPal payment cancelled:', data);
+                }
+            }).render('#paypal-button-container').then(function() {
+                console.log('PayPal buttons rendered successfully');
+                console.log('PayPal container content:', paypalContainer.innerHTML.length > 0 ? 'Has content' : 'Empty');
+            }).catch(function(err) {
+                console.error('Failed to render PayPal buttons:', err);
+                showPayPalError('Failed to initialize PayPal buttons. Please try again.');
+            });
+        } catch (err) {
+            console.error('PayPal initialization error:', err);
+            showPayPalError('PayPal initialization failed. Please refresh the page and try again.');
+        }
+    }
+    
+    function showPayPalError(message) {
+        paypalContainer.innerHTML = `
+            <div style="text-align: center; padding: 20px; border: 1px solid #ff6b6b; border-radius: 5px; background-color: #ffe0e0; color: #d63031;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p style="margin: 10px 0;">${message}</p>
+                <button onclick="location.reload()" style="padding: 8px 16px; background: #ff6b6b; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                    Refresh Page
+                </button>
+            </div>
+        `;
+    }
+})();
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

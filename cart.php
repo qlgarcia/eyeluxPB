@@ -1078,11 +1078,13 @@ function toggleAllItems() {
     const selectAllCheckbox = document.getElementById('select-all');
     const itemCheckboxes = document.querySelectorAll('.item-select-checkbox');
     
-    itemCheckboxes.forEach(checkbox => {
-        checkbox.checked = selectAllCheckbox.checked;
-    });
-    
-    updateSelectedItems();
+    if (selectAllCheckbox) {
+        itemCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+        
+        updateSelectedItems();
+    }
 }
 
 function updateSelectedItems() {
@@ -1090,16 +1092,19 @@ function updateSelectedItems() {
     const selectedCount = document.querySelectorAll('.item-select-checkbox:checked').length;
     const selectAllCheckbox = document.getElementById('select-all');
     
-    // Update select all checkbox state
-    if (selectedCount === 0) {
-        selectAllCheckbox.indeterminate = false;
-        selectAllCheckbox.checked = false;
-    } else if (selectedCount === itemCheckboxes.length) {
-        selectAllCheckbox.indeterminate = false;
-        selectAllCheckbox.checked = true;
-    } else {
-        selectAllCheckbox.indeterminate = true;
-        selectAllCheckbox.checked = false;
+    // Check if select all checkbox exists before trying to update it
+    if (selectAllCheckbox) {
+        // Update select all checkbox state
+        if (selectedCount === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (selectedCount === itemCheckboxes.length) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+            selectAllCheckbox.checked = false;
+        }
     }
     
     // Calculate totals for selected items only

@@ -40,6 +40,7 @@ database_recovery.sql
 config_local.php
 .env
 .env.local
+includes/paypal_config.php
 
 # Cache and session files
 cache/
